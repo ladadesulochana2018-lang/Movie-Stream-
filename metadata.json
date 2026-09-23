@@ -1,0 +1,6 @@
+{
+  "name": "Movie Stream",
+  "description": "Premium OTT Movie & Anime streaming web application with video player, subscriptions, ads manager, payment verifications, and comprehensive admin dashboard.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
