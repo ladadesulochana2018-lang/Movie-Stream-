@@ -40,7 +40,7 @@ export const MovieDetailsModal: React.FC = () => {
     getMovieRatingStats
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'episodes' | 'downloads' | 'comments'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ratings' | 'episodes' | 'downloads' | 'comments'>('overview');
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
@@ -146,17 +146,19 @@ export const MovieDetailsModal: React.FC = () => {
                   <span className="px-2 py-0.5 rounded bg-red-600 text-white font-extrabold text-[10px] uppercase">
                     {movie.type}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-amber-400 font-bold text-xs flex items-center gap-1" title="IMDb Rating">
-                    <Star className="w-3.5 h-3.5 fill-amber-400" /> {movie.imdbRating}
+                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-amber-400 font-bold text-xs flex items-center gap-1 shadow-sm" title="IMDb Rating">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> IMDb {movie.imdbRating}
                   </span>
                   <button
-                    onClick={() => setActiveTab('overview')}
-                    className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center gap-1 hover:bg-amber-500/20 transition-colors cursor-pointer"
-                    title="Audience Average 5-Star Rating"
+                    onClick={() => setActiveTab('ratings')}
+                    className="px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center gap-1.5 hover:bg-amber-500/25 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                    title="5-Star Audience Rating · Click to View Ratings & Rate"
                   >
-                    <Star className="w-3.5 h-3.5 fill-amber-400" />
-                    <span>{ratingStats.averageRating.toFixed(1)}</span>
-                    <span className="text-[10px] text-zinc-400 font-normal">({ratingStats.totalRatings})</span>
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span>{ratingStats.totalRatings > 0 ? `${ratingStats.averageRating.toFixed(1)} ★` : 'Rate Title'}</span>
+                    <span className="text-[10px] text-zinc-300 font-normal">
+                      ({ratingStats.totalRatings})
+                    </span>
                   </button>
                   <span className="text-xs text-zinc-300 font-semibold">{movie.ageRating}</span>
                 </div>
@@ -170,7 +172,7 @@ export const MovieDetailsModal: React.FC = () => {
             </div>
 
             {/* Quick Play & Action */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <button 
                 onClick={() => { setSelectedMovie(null); startPlaying(movie, selectedEpisode || undefined); }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm shadow-lg shadow-red-600/30 transition-all cursor-pointer"
@@ -193,48 +195,63 @@ export const MovieDetailsModal: React.FC = () => {
                 {inPlaylist ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               </button>
               <button 
-                onClick={() => setActiveTab('overview')}
-                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${ratingStats.userRating ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-amber-400'}`}
-                title={ratingStats.userRating ? `You rated ${ratingStats.userRating} / 5 stars` : 'Rate this movie'}
+                onClick={() => setActiveTab('ratings')}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-all cursor-pointer text-xs font-bold ${
+                  ratingStats.userRating 
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-md shadow-amber-500/10' 
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-amber-400 hover:border-amber-500/50'
+                }`}
+                title={ratingStats.userRating ? `You rated ${ratingStats.userRating} / 5 stars · Click to update` : 'Rate this title (1-5 stars)'}
               >
-                <Star className={`w-4 h-4 ${ratingStats.userRating ? 'fill-amber-400' : ''}`} />
+                <Star className={`w-4 h-4 ${ratingStats.userRating ? 'fill-amber-400 text-amber-400' : 'text-amber-400'}`} />
+                <span>{ratingStats.userRating ? `Rated ${ratingStats.userRating}★` : 'Rate'}</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 px-6 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center gap-2 px-6 border-b border-zinc-800 bg-zinc-900/50 overflow-x-auto slim-scrollbar">
           <button 
             onClick={() => setActiveTab('overview')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'overview' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`py-3 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'overview' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             Overview
+          </button>
+          <button 
+            onClick={() => setActiveTab('ratings')}
+            className={`py-3 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'ratings' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <span>Ratings & Reviews</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              {ratingStats.totalRatings > 0 ? `${ratingStats.averageRating.toFixed(1)} ★` : 'Rate'}
+            </span>
           </button>
           {movie.episodes && movie.episodes.length > 0 && (
             <button 
               onClick={() => setActiveTab('episodes')}
-              className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'episodes' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+              className={`py-3 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'episodes' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
             >
               Episodes ({movie.episodes.length})
             </button>
           )}
           <button 
             onClick={() => setActiveTab('downloads')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'downloads' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`py-3 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'downloads' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             Downloads & Links
           </button>
           <button 
             onClick={() => setActiveTab('comments')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors ${activeTab === 'comments' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+            className={`py-3 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'comments' ? 'border-red-500 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
           >
             Comments ({movieComments.length})
           </button>
         </div>
 
         {/* Modal Tab Contents */}
-        <div className="p-6 space-y-6 max-h-[50vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-6 max-h-[60vh] sm:max-h-[65vh] overflow-y-auto slim-scrollbar">
           
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
@@ -308,6 +325,16 @@ export const MovieDetailsModal: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: RATINGS & REVIEWS */}
+          {activeTab === 'ratings' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <MovieRatingWidget 
+                movieId={movie.id} 
+                movieTitle={movie.title} 
+              />
             </div>
           )}
 

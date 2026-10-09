@@ -30,7 +30,8 @@ import {
   initialFeedback, 
   initialNotifications, 
   sampleAdminUser,
-  initialCharacters
+  initialCharacters,
+  initialMovieRatings
 } from '../data/initialData';
 import { 
   checkIsAdminEmail, 
@@ -626,11 +627,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [movieRatings, setMovieRatings] = useState<MovieRating[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_MOVIE_RATINGS_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return [];
+    return initialMovieRatings;
   });
 
   const [comments, setComments] = useState<CommentItem[]>([
@@ -1776,41 +1780,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 5-Star Movie Ratings & Community Rating Stats
   const getMovieRatingStats = (movieId: string): MovieRatingStats => {
-    const targetMovie = movies.find(m => m.id === movieId);
-    const imdb = targetMovie?.imdbRating ?? 8.2;
-    // Scale 10-point IMDb rating to 5-star baseline (e.g. 8.8 -> 4.4)
-    const baseStar = Math.min(5, Math.max(1, imdb / 2));
-
-    // Realistic community baseline rating count seeded deterministically
-    const seedTotal = targetMovie
-      ? Math.max(28, Math.min(180, Math.floor(((targetMovie.likesCount || 3500) / 380) + (imdb * 5))))
-      : 45;
-
-    // Baseline distribution reflecting the quality/rating
-    const p5 = baseStar >= 4.4 ? 0.62 : baseStar >= 4.0 ? 0.48 : 0.32;
-    const p4 = baseStar >= 4.0 ? 0.30 : 0.38;
-    const p3 = 0.10;
-    const p2 = 0.04;
-    const p1 = 0.02;
-
-    const distribution: { 5: number; 4: number; 3: number; 2: number; 1: number } = {
-      5: Math.max(1, Math.round(seedTotal * p5)),
-      4: Math.max(1, Math.round(seedTotal * p4)),
-      3: Math.max(0, Math.round(seedTotal * p3)),
-      2: Math.max(0, Math.round(seedTotal * p2)),
-      1: Math.max(0, Math.round(seedTotal * p1)),
-    };
-
     // User-submitted ratings for this movie
     const ratingsForMovie = movieRatings.filter(r => r.movieId === movieId);
+    const totalCount = ratingsForMovie.length;
+
+    const distribution: { 5: number; 4: number; 3: number; 2: number; 1: number } = {
+      5: 0,
+      4: 0,
+      3: 0,
+      2: 0,
+      1: 0,
+    };
+
+    let totalScore = 0;
     ratingsForMovie.forEach(r => {
       const star = Math.min(5, Math.max(1, Math.round(r.rating))) as 1 | 2 | 3 | 4 | 5;
       distribution[star] = (distribution[star] || 0) + 1;
+      totalScore += star;
     });
 
-    const totalCount = distribution[1] + distribution[2] + distribution[3] + distribution[4] + distribution[5];
-    const totalScore = (distribution[5] * 5) + (distribution[4] * 4) + (distribution[3] * 3) + (distribution[2] * 2) + (distribution[1] * 1);
-    const avg = totalCount > 0 ? parseFloat((totalScore / totalCount).toFixed(1)) : baseStar;
+    const avg = totalCount > 0 ? parseFloat((totalScore / totalCount).toFixed(1)) : 0;
 
     // Detect active viewer's personal rating
     const currentUserId = currentUser?.uid || (typeof window !== 'undefined' ? localStorage.getItem('cinestream_guest_uuid') : null);
@@ -1895,7 +1884,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setComments([]);
     setNotifications([]);
     setMovieRequests([]);
-    setMovieRatings([]);
+    setMovieRatings(initialMovieRatings);
     localStorage.removeItem(LOCAL_MOVIE_RATINGS_KEY);
   };
 

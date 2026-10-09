@@ -1,4 +1,4 @@
-import { Movie, SubscriptionPlan, Coupon, AdsConfig, PaymentTransaction, FeedbackItem, NotificationItem, UserProfile, CharacterItem } from '../types';
+import { Movie, SubscriptionPlan, Coupon, AdsConfig, PaymentTransaction, FeedbackItem, NotificationItem, UserProfile, CharacterItem, MovieRating } from '../types';
 
 export const initialMovies: Movie[] = [
   {
@@ -997,3 +997,19 @@ export const sampleAdminUser: UserProfile = {
   playlist: ['m1', 'm5'],
   downloads: ['m1']
 };
+
+export const initialMovieRatings: MovieRating[] = [
+  { movieId: 'm0_naruto', userId: 'u_user1', username: 'DemonSlayerFan', rating: 5, updatedAt: '2026-07-20T10:00:00Z' },
+  { movieId: 'm0_naruto', userId: 'u_user2', username: 'OtakuMaster', rating: 5, updatedAt: '2026-07-21T14:30:00Z' },
+  { movieId: 'm0_naruto', userId: 'u_user3', username: 'AnimeRider', rating: 4, updatedAt: '2026-07-22T08:15:00Z' },
+  { movieId: 'm1', userId: 'u_user1', username: 'DemonSlayerFan', rating: 5, updatedAt: '2026-07-23T11:00:00Z' },
+  { movieId: 'm1', userId: 'u_user4', username: 'CinephileX', rating: 5, updatedAt: '2026-07-24T16:20:00Z' },
+  { movieId: 'm1', userId: 'u_user5', username: 'ShonenViewer', rating: 5, updatedAt: '2026-07-25T19:45:00Z' },
+  { movieId: 'm2', userId: 'u_user2', username: 'OtakuMaster', rating: 5, updatedAt: '2026-07-26T12:10:00Z' },
+  { movieId: 'm2', userId: 'u_user3', username: 'AnimeRider', rating: 4, updatedAt: '2026-07-27T09:30:00Z' },
+  { movieId: 'm5', userId: 'u_user4', username: 'CinephileX', rating: 5, updatedAt: '2026-07-28T15:00:00Z' },
+  { movieId: 'm5', userId: 'u_user1', username: 'DemonSlayerFan', rating: 5, updatedAt: '2026-07-28T18:00:00Z' },
+  { movieId: 'm6', userId: 'u_user4', username: 'CinephileX', rating: 5, updatedAt: '2026-07-28T20:30:00Z' },
+  { movieId: 'm7', userId: 'u_user5', username: 'ShonenViewer', rating: 5, updatedAt: '2026-07-29T10:15:00Z' },
+  { movieId: 'm7', userId: 'u_user2', username: 'OtakuMaster', rating: 4, updatedAt: '2026-07-29T11:00:00Z' },
+];
