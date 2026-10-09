@@ -56,6 +56,27 @@ export interface Movie {
   createdAt: string;
 }
 
+export interface MovieRating {
+  movieId: string;
+  userId: string;
+  username?: string;
+  rating: number; // 1 to 5
+  updatedAt: string;
+}
+
+export interface MovieRatingStats {
+  averageRating: number;
+  totalRatings: number;
+  userRating: number | null;
+  distribution: {
+    5: number;
+    4: number;
+    3: number;
+    2: number;
+    1: number;
+  };
+}
+
 export interface UserRecord {
   uid: string;
   email: string;

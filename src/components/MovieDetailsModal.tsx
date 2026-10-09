@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Movie, Episode } from '../types';
 import { useApp } from '../context/AppContext';
+import { MovieRatingWidget } from './MovieRatingWidget';
 
 export const MovieDetailsModal: React.FC = () => {
   const { 
@@ -35,7 +36,8 @@ export const MovieDetailsModal: React.FC = () => {
     addComment,
     movies,
     submitMovieRequest,
-    setIsAuthModalOpen
+    setIsAuthModalOpen,
+    getMovieRatingStats
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'episodes' | 'downloads' | 'comments'>('overview');
@@ -62,6 +64,7 @@ export const MovieDetailsModal: React.FC = () => {
   const inPlaylist = currentUser?.playlist?.includes(movie.id) || false;
   const isDownloaded = currentUser?.downloads?.includes(movie.id) || false;
 
+  const ratingStats = getMovieRatingStats(movie.id);
   const movieComments = comments.filter(c => c.movieId === movie.id);
   const relatedMovies = movies.filter(m => m.id !== movie.id && m.genres.some(g => movie.genres.includes(g))).slice(0, 4);
 
@@ -139,13 +142,22 @@ export const MovieDetailsModal: React.FC = () => {
                 className="w-20 h-28 sm:w-28 sm:h-40 rounded-xl object-cover border-2 border-zinc-700 shadow-xl hidden sm:block"
               />
               <div>
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className="px-2 py-0.5 rounded bg-red-600 text-white font-extrabold text-[10px] uppercase">
                     {movie.type}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-amber-400 font-bold text-xs flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-amber-400 font-bold text-xs flex items-center gap-1" title="IMDb Rating">
                     <Star className="w-3.5 h-3.5 fill-amber-400" /> {movie.imdbRating}
                   </span>
+                  <button
+                    onClick={() => setActiveTab('overview')}
+                    className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center gap-1 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                    title="Audience Average 5-Star Rating"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-amber-400" />
+                    <span>{ratingStats.averageRating.toFixed(1)}</span>
+                    <span className="text-[10px] text-zinc-400 font-normal">({ratingStats.totalRatings})</span>
+                  </button>
                   <span className="text-xs text-zinc-300 font-semibold">{movie.ageRating}</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-black text-white font-display tracking-tight">
@@ -169,14 +181,23 @@ export const MovieDetailsModal: React.FC = () => {
               <button 
                 onClick={() => toggleFavorite(movie.id)}
                 className={`p-2.5 rounded-xl border transition-all ${isFavorite ? 'bg-rose-600/20 border-rose-500 text-rose-400' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}
+                title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
               >
                 <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-400' : ''}`} />
               </button>
               <button 
                 onClick={() => togglePlaylist(movie.id)}
                 className={`p-2.5 rounded-xl border transition-all ${inPlaylist ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}
+                title={inPlaylist ? 'In Watchlist' : 'Add to Watchlist'}
               >
                 {inPlaylist ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('overview')}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${ratingStats.userRating ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-amber-400'}`}
+                title={ratingStats.userRating ? `You rated ${ratingStats.userRating} / 5 stars` : 'Rate this movie'}
+              >
+                <Star className={`w-4 h-4 ${ratingStats.userRating ? 'fill-amber-400' : ''}`} />
               </button>
             </div>
           </div>
@@ -242,6 +263,12 @@ export const MovieDetailsModal: React.FC = () => {
                   <div className="text-xs font-bold text-white mt-0.5">{movie.downloadsCount.toLocaleString()}</div>
                 </div>
               </div>
+
+              {/* 5-Star Rating Component & Community Average Review Widget */}
+              <MovieRatingWidget 
+                movieId={movie.id} 
+                movieTitle={movie.title} 
+              />
 
               {/* Action utilities */}
               <div className="flex flex-wrap items-center gap-3">

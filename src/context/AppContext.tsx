@@ -17,7 +17,9 @@ import {
   AppBranding,
   WatchHistoryItem,
   CharacterItem,
-  StatusStoryItem
+  StatusStoryItem,
+  MovieRating,
+  MovieRatingStats
 } from '../types';
 import { 
   initialMovies, 
@@ -188,6 +190,12 @@ interface AppContextType {
   episodeAlertToast: EpisodeAlertToastData | null;
   dismissEpisodeAlertToast: () => void;
 
+  // 5-Star Movie Ratings & Community Score
+  movieRatings: MovieRating[];
+  rateMovie: (movieId: string, rating: number) => void;
+  removeMovieRating: (movieId: string) => void;
+  getMovieRatingStats: (movieId: string) => MovieRatingStats;
+
   // Movie Requests
   movieRequests: MovieRequestItem[];
   submitMovieRequest: (title: string, type: 'movie' | 'anime', message?: string) => void;
@@ -250,6 +258,7 @@ const LOCAL_USERS_KEY = 'cinestream_admin_users_v2';
 const LOCAL_NOTIFICATIONS_KEY = 'cinestream_notifications_v4';
 const LOCAL_READ_NOTIFS_KEY = 'cinestream_read_notifs_ids';
 const LOCAL_WATCHLIST_NOTIF_KEY = 'cinestream_watchlist_notifs_enabled';
+const LOCAL_MOVIE_RATINGS_KEY = 'cinestream_movie_ratings_v1';
 
 const initialDefaultUsers: UserRecord[] = [
   { uid: 'u_1', email: 'admin@gmail.com', username: 'CineAdmin', role: 'admin', plan: 'Diamond Admin VIP', status: 'Active', regDate: '2024-01-01' },
@@ -612,6 +621,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const dismissEpisodeAlertToast = () => {
     setEpisodeAlertToast(null);
   };
+
+  // Movie 5-Star User Ratings State
+  const [movieRatings, setMovieRatings] = useState<MovieRating[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_MOVIE_RATINGS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
   const [comments, setComments] = useState<CommentItem[]>([
     {
       id: 'cm1',
@@ -1753,6 +1774,111 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMovieRequests(prev => [newReq, ...prev]);
   };
 
+  // 5-Star Movie Ratings & Community Rating Stats
+  const getMovieRatingStats = (movieId: string): MovieRatingStats => {
+    const targetMovie = movies.find(m => m.id === movieId);
+    const imdb = targetMovie?.imdbRating ?? 8.2;
+    // Scale 10-point IMDb rating to 5-star baseline (e.g. 8.8 -> 4.4)
+    const baseStar = Math.min(5, Math.max(1, imdb / 2));
+
+    // Realistic community baseline rating count seeded deterministically
+    const seedTotal = targetMovie
+      ? Math.max(28, Math.min(180, Math.floor(((targetMovie.likesCount || 3500) / 380) + (imdb * 5))))
+      : 45;
+
+    // Baseline distribution reflecting the quality/rating
+    const p5 = baseStar >= 4.4 ? 0.62 : baseStar >= 4.0 ? 0.48 : 0.32;
+    const p4 = baseStar >= 4.0 ? 0.30 : 0.38;
+    const p3 = 0.10;
+    const p2 = 0.04;
+    const p1 = 0.02;
+
+    const distribution: { 5: number; 4: number; 3: number; 2: number; 1: number } = {
+      5: Math.max(1, Math.round(seedTotal * p5)),
+      4: Math.max(1, Math.round(seedTotal * p4)),
+      3: Math.max(0, Math.round(seedTotal * p3)),
+      2: Math.max(0, Math.round(seedTotal * p2)),
+      1: Math.max(0, Math.round(seedTotal * p1)),
+    };
+
+    // User-submitted ratings for this movie
+    const ratingsForMovie = movieRatings.filter(r => r.movieId === movieId);
+    ratingsForMovie.forEach(r => {
+      const star = Math.min(5, Math.max(1, Math.round(r.rating))) as 1 | 2 | 3 | 4 | 5;
+      distribution[star] = (distribution[star] || 0) + 1;
+    });
+
+    const totalCount = distribution[1] + distribution[2] + distribution[3] + distribution[4] + distribution[5];
+    const totalScore = (distribution[5] * 5) + (distribution[4] * 4) + (distribution[3] * 3) + (distribution[2] * 2) + (distribution[1] * 1);
+    const avg = totalCount > 0 ? parseFloat((totalScore / totalCount).toFixed(1)) : baseStar;
+
+    // Detect active viewer's personal rating
+    const currentUserId = currentUser?.uid || (typeof window !== 'undefined' ? localStorage.getItem('cinestream_guest_uuid') : null);
+    const userVote = ratingsForMovie.find(r => (currentUserId && r.userId === currentUserId) || (currentUser && r.userId === currentUser.uid));
+
+    return {
+      averageRating: avg,
+      totalRatings: totalCount,
+      userRating: userVote ? userVote.rating : null,
+      distribution
+    };
+  };
+
+  const rateMovie = (movieId: string, rating: number) => {
+    const clampedRating = Math.min(5, Math.max(1, Math.round(rating)));
+    let currentUserId = currentUser?.uid;
+    if (!currentUserId && typeof window !== 'undefined') {
+      let guestId = localStorage.getItem('cinestream_guest_uuid');
+      if (!guestId) {
+        guestId = 'guest_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('cinestream_guest_uuid', guestId);
+      }
+      currentUserId = guestId;
+    }
+    const effectiveUserId = currentUserId || 'guest_viewer';
+
+    setMovieRatings(prev => {
+      const existingIdx = prev.findIndex(r => r.movieId === movieId && (r.userId === effectiveUserId || (currentUser && r.userId === currentUser.uid)));
+      const newRatingItem: MovieRating = {
+        movieId,
+        userId: effectiveUserId,
+        username: currentUser?.username || 'Guest Viewer',
+        rating: clampedRating,
+        updatedAt: new Date().toISOString()
+      };
+
+      let updated: MovieRating[];
+      if (existingIdx >= 0) {
+        updated = [...prev];
+        updated[existingIdx] = newRatingItem;
+      } else {
+        updated = [newRatingItem, ...prev];
+      }
+
+      try {
+        localStorage.setItem(LOCAL_MOVIE_RATINGS_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving movie rating:', e);
+      }
+      return updated;
+    });
+  };
+
+  const removeMovieRating = (movieId: string) => {
+    const currentUserId = currentUser?.uid || (typeof window !== 'undefined' ? localStorage.getItem('cinestream_guest_uuid') : null);
+    if (!currentUserId && !currentUser) return;
+
+    setMovieRatings(prev => {
+      const updated = prev.filter(r => !(r.movieId === movieId && ((currentUserId && r.userId === currentUserId) || (currentUser && r.userId === currentUser.uid))));
+      try {
+        localStorage.setItem(LOCAL_MOVIE_RATINGS_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
   const saveCustomFirebaseConfig = (config: Omit<FirebaseConfigState, 'isConfigured'>): boolean => {
     const success = saveFirebaseConfig(config);
     if (success) {
@@ -1769,6 +1895,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setComments([]);
     setNotifications([]);
     setMovieRequests([]);
+    setMovieRatings([]);
+    localStorage.removeItem(LOCAL_MOVIE_RATINGS_KEY);
   };
 
   return (
@@ -1815,6 +1943,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateWatchProgress,
         removeWatchHistoryItem,
         clearWatchHistory,
+        movieRatings,
+        rateMovie,
+        removeMovieRating,
+        getMovieRatingStats,
         plans,
         updatePlan,
         addPlan,
