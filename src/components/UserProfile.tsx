@@ -23,7 +23,8 @@ import {
   Clock,
   RotateCcw,
   Check,
-  Edit2
+  Edit2,
+  Bell
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { MovieCard } from './MovieCard';
@@ -47,7 +48,12 @@ export const UserProfile: React.FC<{ onOpenSubscription: () => void }> = ({ onOp
     appBranding,
     toggleSplashAnimation,
     toggleSplashSound,
-    replaySplashIntro
+    replaySplashIntro,
+    browserNotifPermission,
+    requestBrowserNotificationPermission,
+    sendWatchlistEpisodeNotification,
+    isWatchlistNotifEnabled,
+    toggleWatchlistNotif
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -609,9 +615,76 @@ export const UserProfile: React.FC<{ onOpenSubscription: () => void }> = ({ onOp
         )}
 
         {activeTab === 'playlist' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {playlistMovies.map(m => <MovieCard key={m.id} movie={m} />)}
-            {playlistMovies.length === 0 && <p className="col-span-full text-xs text-zinc-500 py-8 italic">Your playlist is empty.</p>}
+          <div className="space-y-4">
+            {/* Watchlist Anime Episode Alerts Status Card */}
+            <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-left">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 shrink-0 mt-0.5 sm:mt-0">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-white">Watchlist Anime Episode Alerts</h4>
+                    {browserNotifPermission === 'granted' ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase">
+                        Browser Active
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[9px] font-black uppercase">
+                        Permission Needed
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Receive instant desktop & phone browser notifications the second a new episode of any anime in your Watchlist is added.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                {browserNotifPermission !== 'granted' && browserNotifPermission !== 'unsupported' ? (
+                  <button
+                    onClick={() => requestBrowserNotificationPermission()}
+                    className="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-md shadow-red-600/30 cursor-pointer transition-all"
+                  >
+                    Enable Browser Alerts
+                  </button>
+                ) : (
+                  <button
+                    onClick={toggleWatchlistNotif}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    {isWatchlistNotifEnabled ? 'Pause Alerts' : 'Resume Alerts'}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    const sampleAnime = playlistMovies.find(m => m.type === 'anime') || movies.find(m => m.type === 'anime') || movies[0];
+                    if (sampleAnime) {
+                      const ep = {
+                        id: `test_ep_${Date.now()}`,
+                        episodeNumber: (sampleAnime.episodes?.length || 0) + 1,
+                        title: 'Awakening of the Shadow Monarch',
+                        duration: '24m',
+                        videoUrl: sampleAnime.videoUrl
+                      };
+                      sendWatchlistEpisodeNotification(sampleAnime, ep, true);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 font-extrabold text-xs cursor-pointer transition-colors flex items-center gap-1.5"
+                  title="Test notification right now on your device"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Test Alert</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {playlistMovies.map(m => <MovieCard key={m.id} movie={m} />)}
+              {playlistMovies.length === 0 && <p className="col-span-full text-xs text-zinc-500 py-8 italic">Your Watchlist is empty. Add anime series to start receiving episode notifications!</p>}
+            </div>
           </div>
         )}
 

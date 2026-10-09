@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, Send, CheckCircle2, Trash2, RotateCcw, MessageSquare } from 'lucide-react';
+import { Bell, Send, CheckCircle2, Trash2, RotateCcw, MessageSquare, Sparkles, Tv, ListVideo } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AdminNotifications: React.FC = () => {
@@ -9,7 +9,11 @@ export const AdminNotifications: React.FC = () => {
     deleteNotification, 
     clearAllNotifications, 
     resetNotifications,
-    movies 
+    movies,
+    browserNotifPermission,
+    requestBrowserNotificationPermission,
+    sendWatchlistEpisodeNotification,
+    isWatchlistNotifEnabled
   } = useApp();
 
   const [title, setTitle] = useState('');
@@ -18,6 +22,30 @@ export const AdminNotifications: React.FC = () => {
   const [selectedMovieId, setSelectedMovieId] = useState('');
   const [sentSuccess, setSentSuccess] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+
+  // Watchlist Episode Trigger State
+  const animeList = movies.filter(m => m.type === 'anime');
+  const [animeEpisodeId, setAnimeEpisodeId] = useState(animeList[0]?.id || '');
+  const [animeEpNum, setAnimeEpNum] = useState<number>(1);
+  const [animeEpTitle, setAnimeEpTitle] = useState('New Epic Episode');
+  const [epTriggerSuccess, setEpTriggerSuccess] = useState(false);
+
+  const handleTriggerEpisodeNotification = (forceAll: boolean = false) => {
+    const selectedAnime = movies.find(m => m.id === animeEpisodeId) || animeList[0];
+    if (!selectedAnime) return;
+
+    const sampleEp = {
+      id: `ep_alert_${Date.now()}`,
+      episodeNumber: animeEpNum,
+      title: animeEpTitle.trim() || `Episode ${animeEpNum}`,
+      duration: '24m',
+      videoUrl: selectedAnime.videoUrl || 'https://media.w3.org/2010/05/bunny/movie.mp4'
+    };
+
+    sendWatchlistEpisodeNotification(selectedAnime, sampleEp, forceAll);
+    setEpTriggerSuccess(true);
+    setTimeout(() => setEpTriggerSuccess(false), 3000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +87,113 @@ export const AdminNotifications: React.FC = () => {
           Notification bar successfully reset! All repeated messages have been cleared.
         </div>
       )}
+
+      {/* --- WATCHLIST ANIME EPISODE ALERT DISPATCHER & TESTER --- */}
+      <div className="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 space-y-4 text-xs">
+        <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-red-600/20 text-red-400">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-white text-sm">Anime Watchlist New Episode Alert Dispatcher</span>
+              <p className="text-[10px] text-zinc-400">Send real-time browser notifications when an episode of an anime in user's Watchlist is added.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {browserNotifPermission === 'granted' ? (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Browser Active
+              </span>
+            ) : browserNotifPermission === 'denied' ? (
+              <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-black">
+                Blocked in Browser
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => requestBrowserNotificationPermission()}
+                className="px-2.5 py-1 rounded-full bg-red-600 hover:bg-red-500 text-white text-[10px] font-extrabold cursor-pointer transition-colors shadow-sm"
+              >
+                Enable Browser Permission
+              </button>
+            )}
+          </div>
+        </div>
+
+        {epTriggerSuccess && (
+          <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 text-xs font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>Episode alert dispatched! Native browser notification & in-app notification sent.</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-1">
+            <label className="font-bold text-zinc-300 block mb-1">Target Anime Series</label>
+            <select
+              value={animeEpisodeId}
+              onChange={(e) => {
+                setAnimeEpisodeId(e.target.value);
+                const found = movies.find(m => m.id === e.target.value);
+                if (found) {
+                  setAnimeEpNum((found.episodes?.length || 0) + 1);
+                  setAnimeEpTitle(`Episode ${(found.episodes?.length || 0) + 1}`);
+                }
+              }}
+              className="w-full bg-zinc-950 border border-zinc-800 text-white p-2.5 rounded-xl font-bold focus:outline-none focus:border-red-500"
+            >
+              {animeList.map(a => (
+                <option key={a.id} value={a.id}>{a.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sm:col-span-1">
+            <label className="font-bold text-zinc-300 block mb-1">Episode Number</label>
+            <input 
+              type="number"
+              min={1}
+              value={animeEpNum}
+              onChange={(e) => setAnimeEpNum(parseInt(e.target.value) || 1)}
+              className="w-full bg-zinc-950 border border-zinc-800 text-white p-2.5 rounded-xl focus:outline-none focus:border-red-500 font-bold"
+            />
+          </div>
+
+          <div className="sm:col-span-1">
+            <label className="font-bold text-zinc-300 block mb-1">Episode Title</label>
+            <input 
+              type="text"
+              value={animeEpTitle}
+              onChange={(e) => setAnimeEpTitle(e.target.value)}
+              placeholder="e.g. Battle of the Upper Moons"
+              className="w-full bg-zinc-950 border border-zinc-800 text-white p-2.5 rounded-xl focus:outline-none focus:border-red-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => handleTriggerEpisodeNotification(false)}
+            className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 cursor-pointer transition-all hover:scale-105 active:scale-95"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span>Notify Watchlist Subscribers</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTriggerEpisodeNotification(true)}
+            className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-extrabold text-xs flex items-center gap-2 border border-zinc-700 cursor-pointer transition-all"
+            title="Fire a test notification directly to your device right now"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Test Browser Alert on My Device</span>
+          </button>
+        </div>
+      </div>
 
       {/* Broadcast Form */}
       <form onSubmit={handleSubmit} className="p-6 rounded-3xl bg-zinc-900 border border-zinc-800 space-y-4 text-xs">

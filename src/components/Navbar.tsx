@@ -52,8 +52,32 @@ export const Navbar: React.FC<{ onOpenSubscription: () => void }> = ({ onOpenSub
     setSelectedMovie,
     movies,
     replaySplashIntro,
-    toggleSplashAnimation
+    toggleSplashAnimation,
+    browserNotifPermission,
+    requestBrowserNotificationPermission,
+    sendWatchlistEpisodeNotification,
+    isWatchlistNotifEnabled,
+    toggleWatchlistNotif
   } = useApp();
+
+  const handleTestEpisodeAlert = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Find an anime from user's watchlist or fallback to any anime series
+    const watchlistAnime = movies.find(m => m.type === 'anime' && currentUser?.playlist?.includes(m.id));
+    const targetAnime = watchlistAnime || movies.find(m => m.type === 'anime') || movies[0];
+
+    if (!targetAnime) return;
+
+    const sampleEpisode = {
+      id: `test_ep_${Date.now()}`,
+      episodeNumber: (targetAnime.episodes?.length || 0) + 1,
+      title: 'Awakening of the Shadow Monarch',
+      duration: '24m',
+      videoUrl: targetAnime.videoUrl || 'https://media.w3.org/2010/05/bunny/movie.mp4'
+    };
+
+    sendWatchlistEpisodeNotification(targetAnime, sampleEpisode, true);
+  };
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -268,6 +292,80 @@ export const Navbar: React.FC<{ onOpenSubscription: () => void }> = ({ onOpenSub
                       title="Close"
                     >
                       <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Browser Anime Watchlist Alert Card */}
+                <div className="mb-2.5 p-2.5 rounded-xl bg-zinc-950/90 border border-zinc-800 space-y-1.5 text-left">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        {browserNotifPermission === 'granted' ? (
+                          <>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </>
+                        ) : (
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        )}
+                      </span>
+                      <span>Watchlist Episode Alerts</span>
+                    </span>
+
+                    {browserNotifPermission === 'granted' ? (
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        Browser Active
+                      </span>
+                    ) : browserNotifPermission === 'denied' ? (
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        Blocked
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        Not Enabled
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-zinc-400 leading-tight">
+                    {browserNotifPermission === 'granted'
+                      ? "Instant browser alerts enabled for all new anime episodes in your Watchlist."
+                      : browserNotifPermission === 'denied'
+                      ? "Notifications blocked in browser settings. Please allow in site permissions."
+                      : "Receive desktop/mobile alerts the instant a new anime episode in your Watchlist is added."}
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-0.5">
+                    {browserNotifPermission !== 'granted' && browserNotifPermission !== 'unsupported' ? (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await requestBrowserNotificationPermission();
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-extrabold text-[10px] cursor-pointer shadow-sm transition-all"
+                      >
+                        Enable Browser Alerts
+                      </button>
+                    ) : (
+                      <button
+                        onClick={toggleWatchlistNotif}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                          isWatchlistNotifEnabled
+                            ? 'bg-zinc-800 text-zinc-300 hover:text-white'
+                            : 'bg-zinc-800/60 text-zinc-500'
+                        }`}
+                      >
+                        {isWatchlistNotifEnabled ? 'Turn Mute' : 'Unmute Alerts'}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleTestEpisodeAlert}
+                      className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 text-[10px] font-bold cursor-pointer transition-colors flex items-center gap-1"
+                      title="Test how the browser alert looks right now"
+                    >
+                      <span>⚡ Test Alert</span>
                     </button>
                   </div>
                 </div>

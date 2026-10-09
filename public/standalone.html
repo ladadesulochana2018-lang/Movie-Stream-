@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Stream - Free OTT Movie & Anime Streaming</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: '#E50914',
+            darkBg: '#090A0F',
+            cardBg: '#13151F',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #090A0F;
+      color: #FFFFFF;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #E50914;
+    }
+    .hero-gradient {
+      background: linear-gradient(to top, #090A0F 10%, rgba(9, 10, 15, 0.7) 50%, rgba(9, 10, 15, 0.2) 100%),
+                  linear-gradient(to right, #090A0F 15%, rgba(9, 10, 15, 0.4) 60%, transparent 100%);
+    }
+  </style>
+</head>
+<body class="custom-scrollbar min-h-screen flex flex-col">
+
+  <!-- ================= NAVBAR ================= -->
+  <nav class="sticky top-0 z-40 bg-[#090A0F]/90 backdrop-blur-md border-b border-zinc-800/80 px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-6">
+      <a href="#" onclick="filterCategory('All')" class="flex items-center gap-2 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform">
+          <i class="fa-solid fa-play text-white text-base ml-0.5"></i>
+        </div>
+        <div>
+          <span class="text-xl font-black tracking-wider text-white">CINE<span class="text-red-500">STREAM</span></span>
+          <span class="block text-[10px] uppercase font-bold tracking-widest text-zinc-400">OTT Platform</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Menu -->
+      <div class="hidden md:flex items-center gap-2 text-sm font-semibold text-zinc-300">
+        <button onclick="filterCategory('All')" id="nav-All" class="nav-btn px-3 py-1.5 rounded-lg bg-zinc-800 text-white font-bold transition">All</button>
+        <button onclick="filterCategory('Movies')" id="nav-Movies" class="nav-btn px-3 py-1.5 rounded-lg hover:text-white hover:bg-zinc-800/60 transition">Movies</button>
+        <button onclick="filterCategory('Anime')" id="nav-Anime" class="nav-btn px-3 py-1.5 rounded-lg hover:text-white hover:bg-zinc-800/60 transition">Anime</button>
+        <button onclick="filterCategory('Series')" id="nav-Series" class="nav-btn px-3 py-1.5 rounded-lg hover:text-white hover:bg-zinc-800/60 transition">Web Series</button>
+      </div>
+    </div>
+
+    <!-- Search Bar & Actions -->
+    <div class="flex items-center gap-3">
+      <!-- Search Input -->
+      <div class="relative w-40 sm:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Search movie, anime..." 
+          oninput="handleSearch(this.value)"
+          class="w-full bg-zinc-900/90 border border-zinc-700/80 rounded-full pl-9 pr-4 py-1.5 text-xs text-white placeholder-zinc-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition"
+        >
+      </div>
+
+      <!-- Add Movie / Admin Button -->
+      <button onclick="openAddMovieModal()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-md shadow-red-600/30 transition cursor-pointer">
+        <i class="fa-solid fa-plus"></i>
+        <span class="hidden sm:inline">Add Movie</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= HERO BANNER ================= -->
+  <section id="heroSection" class="relative w-full h-[520px] md:h-[600px] overflow-hidden">
+    <!-- Hero Background Image -->
+    <img 
+      id="heroPoster" 
+      src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1600&auto=format&fit=crop&q=80" 
+      alt="Featured Movie" 
+      class="absolute inset-0 w-full h-full object-cover object-center filter brightness-90 transition-all duration-700"
+    >
+    <!-- Dark Gradient Overlay -->
+    <div class="absolute inset-0 hero-gradient"></div>
+
+    <!-- Hero Content -->
+    <div class="absolute inset-0 flex items-end p-6 md:p-14 pb-16 max-w-5xl">
+      <div class="space-y-4">
+        <!-- Badges -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-1 bg-red-600 text-white text-[11px] font-black rounded uppercase tracking-wider">
+            FEATURED TRENDING
+          </span>
+          <span id="heroQuality" class="px-2.5 py-1 bg-black/60 backdrop-blur-md border border-zinc-700 text-zinc-300 text-[11px] font-bold rounded">
+            4K ULTRA HD
+          </span>
+          <span id="heroRating" class="px-2.5 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-bold rounded flex items-center gap-1">
+            <i class="fa-solid fa-star text-xs"></i> 9.2
+          </span>
+        </div>
+
+        <!-- Title -->
+        <h1 id="heroTitle" class="text-3xl sm:text-5xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-lg">
+          Demon Slayer: Infinity Castle
+        </h1>
+
+        <!-- Synopsis -->
+        <p id="heroDescription" class="text-sm md:text-base text-zinc-300 line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow">
+          Tanjiro and the Demon Slayer Corps plunge directly into the terrifying labyrinth of the Infinity Castle to face Muzan Kibutsuji and the most lethal Upper Rank demons in the ultimate final battle.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex items-center gap-3 pt-2">
+          <button id="heroPlayBtn" onclick="playHeroMovie()" class="flex items-center gap-2.5 bg-red-600 hover:bg-red-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-red-600/40 transform hover:-translate-y-0.5 transition cursor-pointer">
+            <i class="fa-solid fa-play text-sm"></i>
+            <span>Watch Now</span>
+          </button>
+          <button id="heroInfoBtn" onclick="openHeroDetails()" class="flex items-center gap-2 bg-zinc-800/90 hover:bg-zinc-700/90 backdrop-blur border border-zinc-700 text-white font-bold px-5 py-3 rounded-xl transition cursor-pointer">
+            <i class="fa-solid fa-circle-info text-sm"></i>
+            <span>Details</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GENRE FILTER PILLS ================= -->
+  <div class="px-4 md:px-8 pt-6 pb-2">
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+      <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Genre:</span>
+      <button onclick="filterGenre('All')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white whitespace-nowrap">All</button>
+      <button onclick="filterGenre('Action')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Action</button>
+      <button onclick="filterGenre('Anime')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Anime</button>
+      <button onclick="filterGenre('Sci-Fi')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Sci-Fi</button>
+      <button onclick="filterGenre('Thriller')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Thriller</button>
+      <button onclick="filterGenre('Adventure')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Adventure</button>
+      <button onclick="filterGenre('Horror')" class="genre-pill px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-300 hover:bg-zinc-700 whitespace-nowrap">Horror</button>
+    </div>
+  </div>
+
+  <!-- ================= MOVIE LISTING GRID ================= -->
+  <main class="flex-1 px-4 md:px-8 py-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 id="sectionTitle" class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+          <i class="fa-solid fa-fire text-red-500"></i>
+          <span>Popular & Trending Now</span>
+        </h2>
+        <p id="movieCountText" class="text-xs text-zinc-400">Showing top trending titles</p>
+      </div>
+
+      <div class="text-xs text-zinc-400">
+        Click any card to play or view details
+      </div>
+    </div>
+
+    <!-- The Grid -->
+    <div id="moviesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-20">
+      <div class="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4 text-zinc-500">
+        <i class="fa-solid fa-film text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-bold text-white">Koi Movie Nahi Mili</h3>
+      <p class="text-xs text-zinc-400 mt-1">Search term change karein ya koi dusri category select karein.</p>
+    </div>
+  </main>
+
+  <!-- ================= VIDEO PLAYER MODAL ================= -->
+  <div id="videoPlayerModal" class="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-2 sm:p-6 hidden">
+    <!-- Player Top Bar (Back Button) -->
+    <div class="w-full max-w-5xl flex items-center justify-between pb-3 text-white">
+      <div class="flex items-center gap-3">
+        <button onclick="closeVideoPlayer()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-md transition cursor-pointer">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Back to Movies</span>
+        </button>
+        <h3 id="playingTitle" class="text-sm sm:text-base font-black truncate max-w-xs sm:max-w-md">Playing Movie</h3>
+      </div>
+      <button onclick="closeVideoPlayer()" class="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition cursor-pointer">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Video Element -->
+    <div class="w-full max-w-5xl bg-black rounded-xl overflow-hidden border border-zinc-800 shadow-2xl relative aspect-video flex items-center justify-center">
+      <video id="mainVideo" controls autoplay class="w-full h-full object-contain">
+        <source src="" type="video/mp4">
+        Aapka browser video tag support nahi karta.
+      </video>
+    </div>
+
+    <div class="w-full max-w-5xl mt-3 flex items-center justify-between text-xs text-zinc-400">
+      <span id="playingMeta">HD 1080p • Stereo Sound</span>
+      <span class="flex items-center gap-1.5 text-emerald-400"><i class="fa-solid fa-circle-check"></i> High Speed Stream</span>
+    </div>
+  </div>
+
+  <!-- ================= MOVIE DETAILS MODAL ================= -->
+  <div id="detailsModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-[#13151F] border border-zinc-800 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl relative animate-fade-in">
+      <!-- Close Button -->
+      <button onclick="closeDetailsModal()" class="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition cursor-pointer">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex flex-col md:flex-row">
+        <!-- Poster -->
+        <div class="md:w-5/12 h-64 md:h-auto relative">
+          <img id="detailPoster" src="" alt="Movie Poster" class="w-full h-full object-cover">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#13151F] md:hidden"></div>
+        </div>
+
+        <!-- Info -->
+        <div class="p-6 md:w-7/12 flex flex-col justify-between space-y-4">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span id="detailBadge" class="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-black uppercase">Movie</span>
+              <span id="detailYear" class="text-xs text-zinc-400 font-semibold">2024</span>
+              <span id="detailRating" class="text-xs text-amber-400 font-bold flex items-center gap-1"><i class="fa-solid fa-star"></i> 8.5</span>
+            </div>
+
+            <h2 id="detailTitle" class="text-2xl font-black text-white">Movie Title</h2>
+            <p id="detailGenres" class="text-xs text-red-400 font-semibold mt-1">Action • Sci-Fi</p>
+            <p id="detailDesc" class="text-xs sm:text-sm text-zinc-300 mt-3 leading-relaxed">Description goes here.</p>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="space-y-2 pt-2">
+            <button id="detailWatchBtn" onclick="" class="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 transition cursor-pointer">
+              <i class="fa-solid fa-play"></i>
+              <span>Watch Now Full HD</span>
+            </button>
+            <button onclick="closeDetailsModal()" class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs transition cursor-pointer">
+              ← Back to Gallery
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADD MOVIE MODAL (ADMIN) ================= -->
+  <div id="addMovieModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-[#13151F] border border-zinc-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-zinc-800 mb-4">
+        <div class="flex items-center gap-2">
+          <button onclick="closeAddMovieModal()" class="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white mr-1">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+          </button>
+          <h3 class="text-lg font-black text-white">Add New Movie / Content</h3>
+        </div>
+        <button onclick="closeAddMovieModal()" class="text-zinc-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <form onsubmit="handleAddNewMovie(event)" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block text-zinc-400 font-bold mb-1">Movie / Anime Title *</label>
+          <input id="addTitle" required type="text" placeholder="e.g. Inception 2" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-zinc-400 font-bold mb-1">Category *</label>
+            <select id="addCategory" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+              <option value="Movies">Movie</option>
+              <option value="Anime">Anime</option>
+              <option value="Series">Web Series</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-zinc-400 font-bold mb-1">Genre *</label>
+            <select id="addGenre" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+              <option value="Action">Action</option>
+              <option value="Anime">Anime</option>
+              <option value="Sci-Fi">Sci-Fi</option>
+              <option value="Thriller">Thriller</option>
+              <option value="Horror">Horror</option>
+              <option value="Adventure">Adventure</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-bold mb-1">Poster Image URL *</label>
+          <input id="addPoster" required type="url" placeholder="https://image-url.com/poster.jpg" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-bold mb-1">Video MP4 URL (Direct Video / Stream) *</label>
+          <input id="addVideo" required type="url" placeholder="https://commondatastorage.googleapis.com/.../sample.mp4" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-zinc-400 font-bold mb-1">Rating (e.g. 8.9)</label>
+            <input id="addRating" type="number" step="0.1" min="1" max="10" value="8.5" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+          </div>
+          <div>
+            <label class="block text-zinc-400 font-bold mb-1">Release Year</label>
+            <input id="addYear" type="number" value="2024" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-bold mb-1">Story / Synopsis</label>
+          <textarea id="addDesc" rows="3" placeholder="Enter movie synopsis..." class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-red-500"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+          <button type="button" onclick="closeAddMovieModal()" class="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold cursor-pointer">
+            Cancel / Back
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black cursor-pointer shadow-lg shadow-red-600/30">
+            Save & Publish
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="mt-auto border-t border-zinc-800/80 bg-[#090A0F] py-8 px-4 md:px-8 text-center text-xs text-zinc-500">
+    <div class="max-w-4xl mx-auto space-y-3">
+      <div class="flex items-center justify-center gap-2 text-white font-bold text-base">
+        <i class="fa-solid fa-play text-red-500"></i> CineStream OTT
+      </div>
+      <p class="text-zinc-400">Stream Unlimited Movies, Anime Series, & TV Shows in 4K HDR without buffering.</p>
+      <div class="flex flex-wrap items-center justify-center gap-4 text-zinc-400 pt-2">
+        <a href="#" class="hover:text-white">Home</a>
+        <a href="#" class="hover:text-white">Privacy Policy</a>
+        <a href="#" class="hover:text-white">Terms of Service</a>
+        <a href="#" class="hover:text-white">Help Center</a>
+      </div>
+      <p class="text-[11px] text-zinc-600">© 2024 CineStream OTT. All rights reserved. Built with pure HTML, Tailwind CSS & JavaScript.</p>
+    </div>
+  </footer>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // Initial Movie Database
+    const DEFAULT_MOVIES = [
+      {
+        id: '1',
+        title: 'Demon Slayer: Infinity Castle',
+        category: 'Anime',
+        genre: 'Anime',
+        year: 2024,
+        rating: 9.4,
+        poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+        description: 'Tanjiro and the Demon Slayer Corps plunge directly into the terrifying labyrinth of the Infinity Castle for the final epic battle against Muzan Kibutsuji.',
+        isVip: true
+      },
+      {
+        id: '2',
+        title: 'Oppenheimer',
+        category: 'Movies',
+        genre: 'Thriller',
+        year: 2023,
+        rating: 8.9,
+        poster: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb during World War II.',
+        isVip: false
+      },
+      {
+        id: '3',
+        title: 'Cyberpunk: Edgerunners',
+        category: 'Anime',
+        genre: 'Sci-Fi',
+        year: 2023,
+        rating: 8.6,
+        poster: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+        description: 'A street kid trying to survive in a technology and body modification-obsessed city of the future decides to become an edgerunner mercenary.',
+        isVip: true
+      },
+      {
+        id: '4',
+        title: 'Interstellar',
+        category: 'Movies',
+        genre: 'Sci-Fi',
+        year: 2024,
+        rating: 9.0,
+        poster: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        description: 'When Earth becomes uninhabitable in the future, a farmer and ex-NASA pilot is tasked with piloting a spacecraft along with a team of researchers.',
+        isVip: false
+      },
+      {
+        id: '5',
+        title: 'Stranger Things: Season 5',
+        category: 'Series',
+        genre: 'Horror',
+        year: 2024,
+        rating: 8.8,
+        poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        description: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces and one strange little girl.',
+        isVip: true
+      },
+      {
+        id: '6',
+        title: 'John Wick: Chapter 4',
+        category: 'Movies',
+        genre: 'Action',
+        year: 2023,
+        rating: 8.4,
+        poster: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+        description: 'John Wick uncovers a path to defeating The High Table. But before he can earn his freedom, Wick must face off against a new enemy.',
+        isVip: false
+      },
+      {
+        id: '7',
+        title: 'Attack on Titan: The Final Chapters',
+        category: 'Anime',
+        genre: 'Action',
+        year: 2023,
+        rating: 9.5,
+        poster: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
+        description: 'The fate of humanity hangs in the balance as the Rumbling approaches. Eren Jaeger continues his apocalyptic mission.',
+        isVip: true
+      },
+      {
+        id: '8',
+        title: 'Dune: Part Two',
+        category: 'Movies',
+        genre: 'Adventure',
+        year: 2024,
+        rating: 8.9,
+        poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
+        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+        description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.',
+        isVip: false
+      }
+    ];
+
+    // Load or initialize movies in localStorage
+    let movies = JSON.parse(localStorage.getItem('cinestream_movies')) || DEFAULT_MOVIES;
+    let selectedCategory = 'All';
+    let selectedGenre = 'All';
+    let searchQuery = '';
+
+    // Render Grid
+    function renderMovies() {
+      const grid = document.getElementById('moviesGrid');
+      const empty = document.getElementById('emptyState');
+      const countText = document.getElementById('movieCountText');
+
+      const filtered = movies.filter(m => {
+        const matchCategory = selectedCategory === 'All' || m.category === selectedCategory;
+        const matchGenre = selectedGenre === 'All' || m.genre.toLowerCase() === selectedGenre.toLowerCase();
+        const matchSearch = !searchQuery || m.title.toLowerCase().includes(searchQuery.toLowerCase()) || m.genre.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchCategory && matchGenre && matchSearch;
+      });
+
+      countText.innerText = `Showing ${filtered.length} titles`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = filtered.map(movie => `
+        <div class="group relative bg-[#13151F] rounded-xl overflow-hidden border border-zinc-800/80 hover:border-zinc-700 transition duration-300 hover:-translate-y-1.5 shadow-lg flex flex-col">
+          <!-- Poster Container -->
+          <div class="relative aspect-[2/3] w-full overflow-hidden cursor-pointer" onclick="openDetails('${movie.id}')">
+            <img 
+              src="${movie.poster}" 
+              alt="${movie.title}" 
+              loading="lazy" 
+              class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+              onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'"
+            >
+            <div class="absolute inset-0 bg-gradient-to-t from-[#13151F] via-transparent to-transparent opacity-80"></div>
+            
+            <!-- Badges -->
+            <div class="absolute top-2 left-2 flex flex-col gap-1">
+              ${movie.isVip ? '<span class="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-[9px] px-2 py-0.5 rounded shadow">VIP</span>' : '<span class="bg-emerald-600/90 text-white font-bold text-[9px] px-2 py-0.5 rounded shadow">FREE</span>'}
+            </div>
+
+            <!-- Quick Play Hover Overlay -->
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button onclick="event.stopPropagation(); playMovie('${movie.id}')" class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xl hover:scale-110 transition cursor-pointer">
+                <i class="fa-solid fa-play ml-0.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Info -->
+          <div class="p-3 flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1">
+                <span>${movie.year} • ${movie.genre}</span>
+                <span class="text-amber-400 font-bold flex items-center gap-1">
+                  <i class="fa-solid fa-star text-[10px]"></i> ${movie.rating}
+                </span>
+              </div>
+              <h3 class="font-bold text-white text-xs sm:text-sm line-clamp-1 group-hover:text-red-400 transition" title="${movie.title}">
+                ${movie.title}
+              </h3>
+            </div>
+
+            <!-- Buttons -->
+            <div class="mt-2.5 pt-2 border-t border-zinc-800/80 flex items-center gap-1.5">
+              <button onclick="playMovie('${movie.id}')" class="flex-1 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition">
+                <i class="fa-solid fa-play text-[9px]"></i> Play
+              </button>
+              <button onclick="openDetails('${movie.id}')" class="px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] cursor-pointer transition" title="Details">
+                <i class="fa-solid fa-circle-info"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Category Filter
+    function filterCategory(cat) {
+      selectedCategory = cat;
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-zinc-800', 'text-white', 'font-bold');
+        btn.classList.add('hover:text-white', 'hover:bg-zinc-800/60');
+      });
+      const activeBtn = document.getElementById('nav-' + cat);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-zinc-800', 'text-white', 'font-bold');
+        activeBtn.classList.remove('hover:bg-zinc-800/60');
+      }
+
+      document.getElementById('sectionTitle').innerHTML = `
+        <i class="fa-solid fa-layer-group text-red-500"></i>
+        <span>${cat === 'All' ? 'Popular & Trending Now' : cat}</span>
+      `;
+
+      renderMovies();
+    }
+
+    // Genre Filter
+    function filterGenre(genre) {
+      selectedGenre = genre;
+      document.querySelectorAll('.genre-pill').forEach(btn => {
+        btn.classList.remove('bg-red-600', 'text-white');
+        btn.classList.add('bg-zinc-800', 'text-zinc-300');
+        if (btn.innerText.trim().toLowerCase() === genre.toLowerCase()) {
+          btn.classList.remove('bg-zinc-800', 'text-zinc-300');
+          btn.classList.add('bg-red-600', 'text-white');
+        }
+      });
+      renderMovies();
+    }
+
+    // Search Filter
+    function handleSearch(q) {
+      searchQuery = q.trim();
+      renderMovies();
+    }
+
+    // Video Player Functions
+    function playMovie(id) {
+      const movie = movies.find(m => m.id === id);
+      if (!movie) return;
+
+      const modal = document.getElementById('videoPlayerModal');
+      const video = document.getElementById('mainVideo');
+      const title = document.getElementById('playingTitle');
+      const meta = document.getElementById('playingMeta');
+
+      title.innerText = movie.title;
+      meta.innerText = `${movie.category} • ${movie.genre} • Rating: ${movie.rating} ⭐`;
+      video.src = movie.videoUrl;
+      modal.classList.remove('hidden');
+      video.play().catch(e => console.log('Autoplay blocked'));
+    }
+
+    function closeVideoPlayer() {
+      const modal = document.getElementById('videoPlayerModal');
+      const video = document.getElementById('mainVideo');
+      video.pause();
+      video.src = '';
+      modal.classList.add('hidden');
+    }
+
+    // Hero Movie Functions
+    function playHeroMovie() {
+      playMovie('1');
+    }
+
+    function openHeroDetails() {
+      openDetails('1');
+    }
+
+    // Movie Details Modal
+    function openDetails(id) {
+      const movie = movies.find(m => m.id === id);
+      if (!movie) return;
+
+      document.getElementById('detailTitle').innerText = movie.title;
+      document.getElementById('detailDesc').innerText = movie.description;
+      document.getElementById('detailPoster').src = movie.poster;
+      document.getElementById('detailYear').innerText = movie.year;
+      document.getElementById('detailRating').innerHTML = `<i class="fa-solid fa-star"></i> ${movie.rating}`;
+      document.getElementById('detailBadge').innerText = movie.category;
+      document.getElementById('detailGenres').innerText = `${movie.genre} • ${movie.category}`;
+
+      const watchBtn = document.getElementById('detailWatchBtn');
+      watchBtn.onclick = function() {
+        closeDetailsModal();
+        playMovie(movie.id);
+      };
+
+      document.getElementById('detailsModal').classList.remove('hidden');
+    }
+
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').classList.add('hidden');
+    }
+
+    // Add Movie Modal & Form Handling
+    function openAddMovieModal() {
+      document.getElementById('addMovieModal').classList.remove('hidden');
+    }
+
+    function closeAddMovieModal() {
+      document.getElementById('addMovieModal').classList.add('hidden');
+    }
+
+    function handleAddNewMovie(e) {
+      e.preventDefault();
+      const title = document.getElementById('addTitle').value.trim();
+      const category = document.getElementById('addCategory').value;
+      const genre = document.getElementById('addGenre').value;
+      const poster = document.getElementById('addPoster').value.trim();
+      const videoUrl = document.getElementById('addVideo').value.trim();
+      const rating = parseFloat(document.getElementById('addRating').value) || 8.0;
+      const year = parseInt(document.getElementById('addYear').value) || 2024;
+      const desc = document.getElementById('addDesc').value.trim() || 'Exciting entertainment content on CineStream OTT.';
+
+      const newMovie = {
+        id: Date.now().toString(),
+        title: title,
+        category: category,
+        genre: genre,
+        year: year,
+        rating: rating,
+        poster: poster,
+        videoUrl: videoUrl,
+        description: desc,
+        isVip: false
+      };
+
+      movies.unshift(newMovie);
+      localStorage.setItem('cinestream_movies', JSON.stringify(movies));
+      closeAddMovieModal();
+      renderMovies();
+      e.target.reset();
+      alert('Movie successfully add ho gayi hai!');
+    }
+
+    // Keyboard Shortcuts (Esc to close modals)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeVideoPlayer();
+        closeDetailsModal();
+        closeAddMovieModal();
+      }
+    });
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderMovies();
+    });
+  </script>
+</body>
+</html>

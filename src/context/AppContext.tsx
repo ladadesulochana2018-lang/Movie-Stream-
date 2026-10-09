@@ -74,6 +74,12 @@ export function sanitizeMovieRecord(m: Movie): Movie {
   };
 }
 
+export interface EpisodeAlertToastData {
+  movie: Movie;
+  episode: Episode;
+  isWatchlist: boolean;
+}
+
 interface AppContextType {
   // Navigation & View
   currentView: string;
@@ -172,6 +178,16 @@ interface AppContextType {
   clearAllNotifications: () => void;
   resetNotifications: () => void;
 
+  // Browser Notifications & Watchlist Anime Alerts
+  browserNotifPermission: NotificationPermission | 'unsupported';
+  isWatchlistNotifEnabled: boolean;
+  toggleWatchlistNotif: () => void;
+  requestBrowserNotificationPermission: () => Promise<boolean>;
+  sendWatchlistEpisodeNotification: (movie: Movie, episode: Episode, forceAlert?: boolean) => boolean;
+  addEpisodeToMovie: (movieId: string, episodeData: Omit<Episode, 'id'> | Episode, notifyWatchlistUsers?: boolean) => void;
+  episodeAlertToast: EpisodeAlertToastData | null;
+  dismissEpisodeAlertToast: () => void;
+
   // Movie Requests
   movieRequests: MovieRequestItem[];
   submitMovieRequest: (title: string, type: 'movie' | 'anime', message?: string) => void;
@@ -233,6 +249,7 @@ const LOCAL_BRANDING_KEY = 'cinestream_app_branding';
 const LOCAL_USERS_KEY = 'cinestream_admin_users_v2';
 const LOCAL_NOTIFICATIONS_KEY = 'cinestream_notifications_v4';
 const LOCAL_READ_NOTIFS_KEY = 'cinestream_read_notifs_ids';
+const LOCAL_WATCHLIST_NOTIF_KEY = 'cinestream_watchlist_notifs_enabled';
 
 const initialDefaultUsers: UserRecord[] = [
   { uid: 'u_1', email: 'admin@gmail.com', username: 'CineAdmin', role: 'admin', plan: 'Diamond Admin VIP', status: 'Active', regDate: '2024-01-01' },
@@ -572,6 +589,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [];
   });
+
+  // Browser Notification & Watchlist Anime Episode Alerts State
+  const [browserNotifPermission, setBrowserNotifPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'unsupported';
+  });
+
+  const [isWatchlistNotifEnabled, setIsWatchlistNotifEnabled] = useState<boolean>(() => {
+    try {
+      const val = localStorage.getItem(LOCAL_WATCHLIST_NOTIF_KEY);
+      return val !== null ? val === 'true' : true;
+    } catch (e) {
+      return true;
+    }
+  });
+
+  const [episodeAlertToast, setEpisodeAlertToast] = useState<EpisodeAlertToastData | null>(null);
+
+  const dismissEpisodeAlertToast = () => {
+    setEpisodeAlertToast(null);
+  };
   const [comments, setComments] = useState<CommentItem[]>([
     {
       id: 'cm1',
@@ -1142,18 +1182,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateMovie = (id: string, updates: Partial<Movie>, syncToCloud: boolean = false) => {
     setMovies(prev => {
+      const target = prev.find(m => m.id === id);
+
+      // Detect newly added episodes and notify Watchlist users
+      if (target && updates.episodes && updates.episodes.length > (target.episodes || []).length) {
+        const oldEpIds = new Set((target.episodes || []).map(e => e.id));
+        const newlyAddedEps = updates.episodes.filter(e => !oldEpIds.has(e.id));
+        newlyAddedEps.forEach(newEp => {
+          sendWatchlistEpisodeNotification(target, newEp, false);
+        });
+      }
+
       const updated = prev.map(m => m.id === id ? { ...m, ...updates } : m);
-      const target = updated.find(m => m.id === id);
-      if (target) {
-        saveSingleMovieToIndexedDB(target).catch(() => {});
+      const updatedTarget = updated.find(m => m.id === id);
+      if (updatedTarget) {
+        saveSingleMovieToIndexedDB(updatedTarget).catch(() => {});
         if (syncToCloud) {
-          saveMovieToFirestore(target).catch(() => {});
+          saveMovieToFirestore(updatedTarget).catch(() => {});
         }
         try {
           const existingCustom: Movie[] = JSON.parse(localStorage.getItem(LOCAL_CUSTOM_MOVIES_KEY) || '[]');
           const idx = existingCustom.findIndex(m => m.id === id);
           if (idx >= 0) {
-            existingCustom[idx] = target;
+            existingCustom[idx] = updatedTarget;
             localStorage.setItem(LOCAL_CUSTOM_MOVIES_KEY, JSON.stringify(existingCustom));
           }
         } catch (e) {}
@@ -1563,6 +1614,130 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     clearAllNotifications();
   };
 
+  const toggleWatchlistNotif = () => {
+    setIsWatchlistNotifEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem(LOCAL_WATCHLIST_NOTIF_KEY, String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const requestBrowserNotificationPermission = async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setBrowserNotifPermission('unsupported');
+      return false;
+    }
+    try {
+      const res = await Notification.requestPermission();
+      setBrowserNotifPermission(res);
+      if (res === 'granted') {
+        setIsWatchlistNotifEnabled(true);
+        try {
+          localStorage.setItem(LOCAL_WATCHLIST_NOTIF_KEY, 'true');
+        } catch (e) {}
+        try {
+          new Notification('⚡ CineStream Watchlist Alerts Enabled', {
+            body: "You'll now receive instant browser notifications whenever a new episode of your Watchlist anime is added!",
+            icon: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&q=80',
+            tag: 'watchlist-notif-welcome'
+          });
+        } catch (err) {}
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Notification permission error:', err);
+      return false;
+    }
+  };
+
+  const sendWatchlistEpisodeNotification = (movie: Movie, episode: Episode, forceAlert: boolean = false): boolean => {
+    const isAnime = movie.type === 'anime' || (movie.genres && movie.genres.some(g => g.toLowerCase().includes('anime')));
+    const inWatchlist = currentUser?.playlist?.includes(movie.id) || false;
+
+    // Trigger if forced (testing / admin simulator) or if it's an anime in user's Watchlist
+    if (!forceAlert && (!isAnime || !inWatchlist)) {
+      return false;
+    }
+
+    // 1. Show interactive in-app toast banner
+    setEpisodeAlertToast({
+      movie,
+      episode,
+      isWatchlist: inWatchlist
+    });
+
+    // 2. Add to in-app Notification Center log
+    sendNotification(
+      `⚡ New Episode: ${movie.title} (Ep ${episode.episodeNumber})`,
+      `Episode ${episode.episodeNumber}: "${episode.title}" is now available to stream in your Watchlist!`,
+      'all',
+      movie.id
+    );
+
+    // 3. Trigger native browser notification
+    if (isWatchlistNotifEnabled && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notif = new Notification(`⚡ New Episode Alert: ${movie.title}`, {
+          body: `Episode ${episode.episodeNumber}: "${episode.title}" has just dropped! Stream now in HD.`,
+          icon: movie.posterUrl || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&q=80',
+          badge: movie.posterUrl || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&q=80',
+          tag: `watchlist-anime-ep-${movie.id}-${episode.id || episode.episodeNumber}`,
+          renotify: true
+        } as any);
+
+        notif.onclick = () => {
+          window.focus();
+          startPlaying(movie, episode);
+          notif.close();
+        };
+        return true;
+      } catch (err) {
+        console.warn('Native notification dispatch error:', err);
+      }
+    }
+    return true;
+  };
+
+  const addEpisodeToMovie = (movieId: string, episodeData: Omit<Episode, 'id'> | Episode, notifyWatchlistUsers: boolean = true) => {
+    const newEp: Episode = {
+      ...episodeData,
+      id: (episodeData as Episode).id || `ep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    };
+
+    setMovies(prev => {
+      const target = prev.find(m => m.id === movieId);
+      if (!target) return prev;
+
+      const existingEps = target.episodes || [];
+      const updatedEpisodes = [...existingEps.filter(e => e.id !== newEp.id), newEp].sort((a, b) => a.episodeNumber - b.episodeNumber);
+      const updatedMovie: Movie = {
+        ...target,
+        episodes: updatedEpisodes
+      };
+
+      saveSingleMovieToIndexedDB(updatedMovie).catch(() => {});
+      saveMovieToFirestore(updatedMovie).catch(() => {});
+
+      try {
+        const existingCustom: Movie[] = JSON.parse(localStorage.getItem(LOCAL_CUSTOM_MOVIES_KEY) || '[]');
+        const idx = existingCustom.findIndex(m => m.id === movieId);
+        if (idx >= 0) {
+          existingCustom[idx] = updatedMovie;
+          localStorage.setItem(LOCAL_CUSTOM_MOVIES_KEY, JSON.stringify(existingCustom));
+        }
+      } catch (e) {}
+
+      if (notifyWatchlistUsers) {
+        sendWatchlistEpisodeNotification(updatedMovie, newEp, false);
+      }
+
+      return prev.map(m => m.id === movieId ? updatedMovie : m);
+    });
+  };
+
   const submitMovieRequest = (title: string, type: 'movie' | 'anime', message?: string) => {
     if (!currentUser) return;
     const newReq: MovieRequestItem = {
@@ -1670,6 +1845,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteNotification,
         clearAllNotifications,
         resetNotifications,
+        browserNotifPermission,
+        isWatchlistNotifEnabled,
+        toggleWatchlistNotif,
+        requestBrowserNotificationPermission,
+        sendWatchlistEpisodeNotification,
+        addEpisodeToMovie,
+        episodeAlertToast,
+        dismissEpisodeAlertToast,
         movieRequests,
         submitMovieRequest,
         searchQuery,

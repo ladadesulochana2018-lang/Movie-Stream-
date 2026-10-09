@@ -38,12 +38,21 @@ import { compressImage } from '../../utils/imageCompressor';
 import { saveMediaBlob, isGoogleDriveUrl, formatGoogleDrivePreviewUrl } from '../../utils/persistentStorage';
 
 export const AdminMovies: React.FC = () => {
-  const { movies, addMovie, updateMovie, deleteMovie, deleteAllMovies, resetMoviesData } = useApp();
+  const { movies, addMovie, updateMovie, deleteMovie, deleteAllMovies, resetMoviesData, addEpisodeToMovie, sendWatchlistEpisodeNotification } = useApp();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMovieId, setEditingMovieId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'movie' | 'anime'>('all');
+
+  // Anime Episode Quick Manager State
+  const [managingAnime, setManagingAnime] = useState<Movie | null>(null);
+  const [newEpTitle, setNewEpTitle] = useState('');
+  const [newEpNumber, setNewEpNumber] = useState<number>(1);
+  const [newEpDuration, setNewEpDuration] = useState('24m');
+  const [newEpVideoUrl, setNewEpVideoUrl] = useState('');
+  const [newEpNotifyWatchlist, setNewEpNotifyWatchlist] = useState(true);
+  const [epSuccessAlert, setEpSuccessAlert] = useState(false);
 
   // Close modals on Escape key
   useEffect(() => {
@@ -54,6 +63,7 @@ export const AdminMovies: React.FC = () => {
         setIsZipModalOpen(false);
         setDeleteConfirmOpen(false);
         setResetConfirmOpen(false);
+        setManagingAnime(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -907,6 +917,43 @@ export const AdminMovies: React.FC = () => {
     setIsFormOpen(false);
   };
 
+  const handleQuickAddEpisode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managingAnime || !newEpTitle.trim()) return;
+
+    const epVideo = newEpVideoUrl.trim() || managingAnime.videoUrl || 'https://media.w3.org/2010/05/bunny/movie.mp4';
+    const sanitizedEpVideo = isGoogleDriveUrl(epVideo) ? formatGoogleDrivePreviewUrl(epVideo) : epVideo;
+
+    const newEpisode: Episode = {
+      id: `ep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      episodeNumber: Number(newEpNumber) || ((managingAnime.episodes?.length || 0) + 1),
+      title: newEpTitle.trim(),
+      duration: newEpDuration.trim() || '24m',
+      videoUrl: sanitizedEpVideo
+    };
+
+    addEpisodeToMovie(managingAnime.id, newEpisode, newEpNotifyWatchlist);
+
+    setEpSuccessAlert(true);
+    setNewEpTitle(`Episode ${(Number(newEpNumber) || (managingAnime.episodes?.length || 0)) + 1}`);
+    setNewEpNumber((Number(newEpNumber) || (managingAnime.episodes?.length || 0)) + 1);
+    setNewEpVideoUrl('');
+
+    // Keep managingAnime refreshed
+    setManagingAnime(prev => {
+      if (!prev) return null;
+      const currentEps = prev.episodes || [];
+      return {
+        ...prev,
+        episodes: [...currentEps, newEpisode].sort((a, b) => a.episodeNumber - b.episodeNumber)
+      };
+    });
+
+    setTimeout(() => {
+      setEpSuccessAlert(false);
+    }, 3000);
+  };
+
   const filteredMovies = movies.filter(movie => {
     const matchesSearch = movie.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
                           movie.genres.some(g => g.toLowerCase().includes(searchFilter.toLowerCase())) ||
@@ -1123,6 +1170,21 @@ export const AdminMovies: React.FC = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-zinc-800/80 mt-2">
                   <span className="text-[10px] text-zinc-500">{movie.category || 'Standard'}</span>
                   <div className="flex items-center gap-2">
+                    {movie.type === 'anime' && (
+                      <button 
+                        onClick={() => {
+                          setManagingAnime(movie);
+                          setNewEpNumber((movie.episodes?.length || 0) + 1);
+                          setNewEpTitle(`Episode ${(movie.episodes?.length || 0) + 1}`);
+                          setNewEpVideoUrl(movie.videoUrl || '');
+                        }}
+                        title="Manage Episodes & Send Watchlist Alerts"
+                        className="px-2 py-1 rounded-lg bg-sky-950/60 hover:bg-sky-600 text-sky-400 hover:text-white transition-colors cursor-pointer text-[10px] font-bold flex items-center gap-1 border border-sky-800/50"
+                      >
+                        <ListVideo className="w-3.5 h-3.5" />
+                        <span>Eps ({movie.episodes?.length || 0})</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => handleOpenForm(movie)}
                       title="Edit details"
@@ -1986,6 +2048,250 @@ export const AdminMovies: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- ANIME EPISODES QUICK MANAGER MODAL (WITH BROWSER NOTIFICATION ALERT) --- */}
+      {managingAnime && (
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setManagingAnime(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-start p-3 sm:p-6 overflow-y-auto"
+        >
+          {/* Floating Back Button */}
+          <button 
+            type="button"
+            onClick={() => setManagingAnime(null)}
+            className="fixed top-4 left-4 z-[70] flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-2xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+            title="Go Back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>← Back / Wapas</span>
+          </button>
+
+          {/* Sticky Top Header */}
+          <div className="sticky top-2 z-50 w-full max-w-3xl py-2.5 px-4 mb-3 rounded-2xl bg-zinc-950/95 border border-zinc-800 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 shrink-0">
+            <button 
+              type="button"
+              onClick={() => setManagingAnime(null)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back / Wapas</span>
+            </button>
+
+            <span className="text-xs sm:text-sm font-bold text-white truncate max-w-xs sm:max-w-md">
+              Episodes: {managingAnime.title}
+            </span>
+
+            <button 
+              type="button"
+              onClick={() => setManagingAnime(null)} 
+              className="p-1.5 rounded-xl bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="relative w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl space-y-5 mb-12 text-left">
+            {/* Header info */}
+            <div className="flex items-start gap-4 pb-4 border-b border-zinc-800">
+              <img 
+                src={managingAnime.posterUrl} 
+                alt={managingAnime.title}
+                className="w-16 h-24 rounded-xl object-cover border border-zinc-700 shrink-0" 
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded bg-red-600 text-white font-black text-[9px] uppercase">Anime Series</span>
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-amber-400" /> {managingAnime.imdbRating}
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white font-display truncate">{managingAnime.title}</h3>
+                <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{managingAnime.description}</p>
+              </div>
+            </div>
+
+            {/* Notification Feature Highlights */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-red-950/40 via-zinc-950/60 to-zinc-950 border border-red-800/40 flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 shrink-0">
+                <ListVideo className="w-5 h-5" />
+              </div>
+              <div className="text-xs space-y-0.5">
+                <div className="font-bold text-white flex items-center gap-1.5">
+                  <span>⚡ Automatic Watchlist Browser Notification</span>
+                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase">Active</span>
+                </div>
+                <p className="text-zinc-400 text-[11px] leading-relaxed">
+                  Jab bhi aap is anime series ka naya episode publish karenge, jin sabhi users ne ise apni <strong>'Watchlist'</strong> me add kiya hai, unhe turant <strong>real-time browser notification</strong> aur in-app alert chala jayega!
+                </p>
+              </div>
+            </div>
+
+            {epSuccessAlert && (
+              <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>New Episode successfully added! Watchlist browser notification dispatched.</span>
+              </div>
+            )}
+
+            {/* Current Episodes List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-zinc-300 uppercase tracking-wider">
+                  Published Episodes ({managingAnime.episodes?.length || 0})
+                </h4>
+                <span className="text-[10px] text-zinc-500">Sorted by Episode Number</span>
+              </div>
+
+              {(!managingAnime.episodes || managingAnime.episodes.length === 0) ? (
+                <div className="p-6 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-center text-zinc-500 text-xs italic">
+                  No episodes have been published for this series yet. Use the form below to add Episode 1.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {managingAnime.episodes.map((ep) => (
+                    <div 
+                      key={ep.id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <span className="w-8 h-8 rounded-lg bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center font-black text-xs shrink-0">
+                          {ep.episodeNumber}
+                        </span>
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-bold text-white truncate">{ep.title}</h5>
+                          <span className="text-[10px] text-zinc-400 font-mono">{ep.duration || '24m'} • {ep.videoUrl ? 'Video linked' : 'No stream'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sendWatchlistEpisodeNotification(managingAnime, ep, true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-400 text-[10px] font-bold cursor-pointer transition-colors"
+                          title="Trigger a test browser notification for this episode"
+                        >
+                          ⚡ Test Alert
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (managingAnime.episodes || []).filter(e => e.id !== ep.id);
+                            updateMovie(managingAnime.id, { episodes: updated }, true);
+                            setManagingAnime({ ...managingAnime, episodes: updated });
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-950/40 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                          title="Delete episode"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add New Episode Form */}
+            <form onSubmit={handleQuickAddEpisode} className="p-4 sm:p-5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-red-500" />
+                  <span>Add New Episode & Notify Watchlist</span>
+                </span>
+                <span className="text-[10px] text-zinc-400">Step 1 of 1</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="text-[11px] font-bold text-zinc-300 block mb-1">Episode # *</label>
+                  <input 
+                    type="number" 
+                    required
+                    min={1}
+                    value={newEpNumber}
+                    onChange={(e) => setNewEpNumber(parseInt(e.target.value) || 1)}
+                    className="w-full bg-zinc-900 border border-zinc-700 text-white p-2.5 rounded-xl text-xs focus:border-red-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-bold text-zinc-300 block mb-1">Episode Title *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. The Final Clash: Tanjiro vs Akaza"
+                    value={newEpTitle}
+                    onChange={(e) => setNewEpTitle(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 text-white p-2.5 rounded-xl text-xs focus:border-red-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-1">
+                  <label className="text-[11px] font-bold text-zinc-300 block mb-1">Duration</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. 24m"
+                    value={newEpDuration}
+                    onChange={(e) => setNewEpDuration(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 text-white p-2.5 rounded-xl text-xs focus:border-red-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-zinc-300 block mb-1">
+                  Stream Video URL (MP4 / HLS / Google Drive link)
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="Paste direct MP4 or Google Drive preview link"
+                  value={newEpVideoUrl}
+                  onChange={(e) => setNewEpVideoUrl(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 text-white p-2.5 rounded-xl text-xs font-mono focus:border-red-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Leave blank to inherit the anime's primary stream video source.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-zinc-800">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-white">
+                  <input 
+                    type="checkbox" 
+                    checked={newEpNotifyWatchlist} 
+                    onChange={(e) => setNewEpNotifyWatchlist(e.target.checked)} 
+                    className="accent-red-600 w-4 h-4 cursor-pointer" 
+                  />
+                  <span>Send browser notification to Watchlist users</span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManagingAnime(null)}
+                    className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-lg shadow-red-600/30 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Publish Episode</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+
           </div>
         </div>
       )}

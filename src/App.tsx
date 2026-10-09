@@ -16,6 +16,7 @@ import { AlphabetDirectory } from './components/AlphabetDirectory';
 import { CharacterArchCarousel } from './components/CharacterArchCarousel';
 import { StorageUsageBar } from './components/StorageUsageBar';
 import { SplashIntro } from './components/SplashIntro';
+import { EpisodeAlertToast } from './components/EpisodeAlertToast';
 import { Film, Tv, Flame, Star, Sparkles, Search, Clapperboard, Layers, Home, User, Download, ShieldCheck, Crown } from 'lucide-react';
 
 const MainContent: React.FC = () => {
@@ -88,6 +89,9 @@ const MainContent: React.FC = () => {
       
       {/* Navigation Header */}
       <Navbar onOpenSubscription={() => setIsSubscriptionModalOpen(true)} />
+
+      {/* Real-Time Watchlist Anime Episode Alert Toast Banner */}
+      <EpisodeAlertToast />
 
       {/* ADMIN VIEW */}
       {currentView === 'admin' && (
